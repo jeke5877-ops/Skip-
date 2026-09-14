@@ -1,0 +1,308 @@
+-- Скрипт макроса для Slop Tower Defense с поддержкой Arceus X
+-- Записывает касания, воспроизводит их, автоматически выбирает карту и сложность
+-- Комментарии на русском согласно протоколу
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local LP = Players.LocalPlayer
+
+-- Состояние
+local recording = false
+local replaying = false
+local autoReplay = false
+local autoLobby = false
+local autoMap = false
+local applyDifficulty = false
+local macro = {}
+local startTime = 0
+local loadedMacro = {}
+
+-- Функция эмуляции касания (поддерживает несколько методов)
+local function simulateTouch(x, y)
+    -- Метод 1: SendTouchEvent (наиболее точный для мобильных)
+    local success = pcall(function()
+        VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.Begin, x, y, 0, 0, 0)
+        task.wait(0.05)
+        VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.End, x, y, 0, 0, 0)
+    end)
+    if success then return true end
+
+    -- Метод 2: SendMouseButtonEvent (запасной)
+    success = pcall(function()
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+    end)
+    if success then return true end
+
+    -- Метод 3: Встроенные функции Arceus X (tap или touch)
+    if tap then
+        pcall(function() tap(x, y) end)
+        return true
+    elseif touch then
+        pcall(function() touch(x, y) end)
+        return true
+    end
+
+    return false
+end
+
+-- Окно Rayfield
+local Window = Rayfield:CreateWindow({
+    Name = "Slop TD Macro",
+    LoadingTitle = "Загрузка...",
+    LoadingSubtitle = "by seraph",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "SlopTDMacro",
+        FileName = "Config"
+    },
+    KeySystem = false
+})
+
+local MacroTab = Window:CreateTab("Macro", 4483362458)
+local SettingsTab = Window:CreateTab("Settings", 4483362458)
+
+local FileNameBox = MacroTab:CreateInput({
+    Name = "Имя файла макроса",
+    PlaceholderText = "macro1.json",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        _G.macroFileName = Text
+    end
+})
+
+local RecordButton = MacroTab:CreateButton({
+    Name = "Начать запись",
+    Callback = function()
+        if recording then return end
+        macro = {}
+        recording = true
+        startTime = tick()
+        Rayfield:Notify({Title = "Запись", Content = "Запись начата", Duration = 2})
+    end
+})
+
+local StopButton = MacroTab:CreateButton({
+    Name = "Остановить и сохранить",
+    Callback = function()
+        if not recording then return end
+        recording = false
+        local filename = _G.macroFileName or "macro.json"
+        local json = HttpService:JSONEncode(macro)
+        if writefile then
+            writefile(filename, json)
+            Rayfield:Notify({Title = "Сохранено", Content = "Сохранено " .. #macro .. " действий в " .. filename, Duration = 3})
+        else
+            Rayfield:Notify({Title = "Ошибка", Content = "writefile недоступен", Duration = 3})
+        end
+    end
+})
+
+local LoadButton = MacroTab:CreateButton({
+    Name = "Загрузить макрос",
+    Callback = function()
+        local filename = _G.macroFileName or "macro.json"
+        if readfile and isfile and isfile(filename) then
+            local json = readfile(filename)
+            loadedMacro = HttpService:JSONDecode(json)
+            Rayfield:Notify({Title = "Загружено", Content = "Загружено " .. #loadedMacro .. " действий", Duration = 3})
+        else
+            Rayfield:Notify({Title = "Ошибка", Content = "Файл не найден", Duration = 3})
+        end
+    end
+})
+
+local RunButton = MacroTab:CreateButton({
+    Name = "Запустить макрос",
+    Callback = function()
+        if replaying or recording then return end
+        if #loadedMacro == 0 then
+            local filename = _G.macroFileName or "macro.json"
+            if readfile and isfile and isfile(filename) then
+                loadedMacro = HttpService:JSONDecode(readfile(filename))
+            end
+        end
+        replaying = true
+        Rayfield:Notify({Title = "Запуск", Content = "Выполнение макроса...", Duration = 2})
+        task.spawn(function()
+            -- Применение карты
+            if autoMap then
+                local mapName = _G.mapName or ""
+                if mapName ~= "" then
+                    for _, gui in pairs(LP.PlayerGui:GetDescendants()) do
+                        if (gui:IsA("TextButton") or gui:IsA("ImageButton")) and (gui.Text and gui.Text:lower():find(mapName:lower()) or gui.Name:lower():find(mapName:lower())) then
+                            gui.MouseButton1Click:Fire()
+                            task.wait(0.5)
+                            break
+                        end
+                    end
+                end
+            end
+            -- Применение сложности
+            if applyDifficulty then
+                local diffName = _G.diffName or ""
+                if diffName ~= "" then
+                    for _, gui in pairs(LP.PlayerGui:GetDescendants()) do
+                        if (gui:IsA("TextButton") or gui:IsA("ImageButton")) and (gui.Text and gui.Text:lower():find(diffName:lower()) or gui.Name:lower():find(diffName:lower())) then
+                            gui.MouseButton1Click:Fire()
+                            task.wait(0.5)
+                            break
+                        end
+                    end
+                end
+            end
+            -- Воспроизведение касаний
+            for _, action in ipairs(loadedMacro) do
+                task.wait(action.delay or 0.1)
+                simulateTouch(action.x, action.y)
+            end
+            replaying = false
+            Rayfield:Notify({Title = "Готово", Content = "Макрос выполнен", Duration = 2})
+            if autoLobby then
+                task.wait(2)
+                TeleportService:Teleport(game.PlaceId, LP)
+            end
+        end)
+    end
+})
+
+local AutoReplayToggle = MacroTab:CreateToggle({
+    Name = "Авто-повтор",
+    CurrentValue = false,
+    Flag = "AutoReplay",
+    Callback = function(Value)
+        autoReplay = Value
+        if Value then
+            task.spawn(function()
+                while autoReplay do
+                    if not replaying and not recording then
+                        if #loadedMacro == 0 then
+                            local filename = _G.macroFileName or "macro.json"
+                            if readfile and isfile and isfile(filename) then
+                                loadedMacro = HttpService:JSONDecode(readfile(filename))
+                            end
+                        end
+                        replaying = true
+                        task.spawn(function()
+                            if autoMap then
+                                local mapName = _G.mapName or ""
+                                if mapName ~= "" then
+                                    for _, gui in pairs(LP.PlayerGui:GetDescendants()) do
+                                        if (gui:IsA("TextButton") or gui:IsA("ImageButton")) and (gui.Text and gui.Text:lower():find(mapName:lower()) or gui.Name:lower():find(mapName:lower())) then
+                                            gui.MouseButton1Click:Fire()
+                                            task.wait(0.5)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if applyDifficulty then
+                                local diffName = _G.diffName or ""
+                                if diffName ~= "" then
+                                    for _, gui in pairs(LP.PlayerGui:GetDescendants()) do
+                                        if (gui:IsA("TextButton") or gui:IsA("ImageButton")) and (gui.Text and gui.Text:lower():find(diffName:lower()) or gui.Name:lower():find(diffName:lower())) then
+                                            gui.MouseButton1Click:Fire()
+                                            task.wait(0.5)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            for _, action in ipairs(loadedMacro) do
+                                task.wait(action.delay or 0.1)
+                                simulateTouch(action.x, action.y)
+                            end
+                            replaying = false
+                            if autoLobby then
+                                task.wait(2)
+                                TeleportService:Teleport(game.PlaceId, LP)
+                            end
+                        end)
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+local AutoLobbyToggle = MacroTab:CreateToggle({
+    Name = "Авто-лобби",
+    CurrentValue = false,
+    Flag = "AutoLobby",
+    Callback = function(Value)
+        autoLobby = Value
+    end
+})
+
+-- Настройки
+local MapInput = SettingsTab:CreateInput({
+    Name = "Название карты",
+    PlaceholderText = "Space Endless",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        _G.mapName = Text
+    end
+})
+
+local AutoMapToggle = SettingsTab:CreateToggle({
+    Name = "Авто-выбор карты",
+    CurrentValue = false,
+    Flag = "AutoMap",
+    Callback = function(Value)
+        autoMap = Value
+    end
+})
+
+local DiffInput = SettingsTab:CreateInput({
+    Name = "Сложность",
+    PlaceholderText = "Normal",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        _G.diffName = Text
+    end
+})
+
+local ApplyDiffToggle = SettingsTab:CreateToggle({
+    Name = "Применять сложность",
+    CurrentValue = false,
+    Flag = "ApplyDiff",
+    Callback = function(Value)
+        applyDifficulty = Value
+    end
+})
+
+-- Запись касаний (мобильная версия)
+UserInputService.TouchTap:Connect(function(touchPositions, processed)
+    if recording and not processed then
+        local pos = touchPositions[1]
+        local x, y = pos.X, pos.Y
+        local delay = tick() - startTime
+        startTime = tick()
+        local unitName = ""
+        local guiObjects = LP.PlayerGui:GetGuiObjectsAtPosition(x, y)
+        for _, obj in ipairs(guiObjects) do
+            if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+                unitName = obj.Name
+                if obj.Text and obj.Text ~= "" then
+                    unitName = obj.Text
+                end
+                break
+            end
+        end
+        table.insert(macro, {
+            x = x,
+            y = y,
+            delay = delay,
+            unit = unitName
+        })
+        Rayfield:Notify({Title = "Запись", Content = "Записано: " .. #macro .. " | Юнит: " .. (unitName ~= "" and unitName or "?"), Duration = 1})
+    end
+end)
+
+Rayfield:LoadConfiguration()
