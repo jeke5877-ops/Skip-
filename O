@@ -1,0 +1,572 @@
+-- Slop Tower Defense Macro - Advanced Touch Detection
+-- Smart tap detection: tracks gestures (tap, hold, swipe), distinguishes UI vs world
+-- Auto-learns button coords from UI text + region + visual cues
+-- For Arceus X / Delta Executor
+
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
+local LP = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- ============ FILES ============
+local FILE_MAPROOM = "maproom.json"
+local FILE_GAME = "game.json"
+local FILE_END = "end.json"
+local FILE_SETTINGS = "sloptd_settings.json"
+
+-- ============ SETTINGS ============
+local Settings = {
+    Running = false,
+    Recording = false,
+    CurrentPhase = "maproom",
+    MapWaitTimeout = 300,
+    ReplayX = 0, ReplayY = 0,
+    MapX = 0, MapY = 0,
+    DiffX = 0, DiffY = 0,
+    SpeedX = 0, SpeedY = 0,
+    ConfirmX = 0, ConfirmY = 0
+}
+
+-- ============ FILE I/O ============
+local function hasFileAPI()
+    return writefile ~= nil and readfile ~= nil and isfile ~= nil
+end
+
+local function saveJSON(fn, d)
+    if not hasFileAPI() then return false end
+    return pcall(function() writefile(fn, HttpService:JSONEncode(d)) end)
+end
+
+local function loadJSON(fn)
+    if not hasFileAPI() or not isfile(fn) then return nil end
+    local ok, d = pcall(function() return HttpService:JSONDecode(readfile(fn)) end)
+    return ok and d or nil
+end
+
+local function saveSettings() pcall(function() saveJSON(FILE_SETTINGS, Settings) end) end
+
+local function loadSettings()
+    local d = loadJSON(FILE_SETTINGS)
+    if d then
+        for k, v in pairs(d) do if Settings[k] ~= nil then Settings[k] = v end end
+    end
+end
+loadSettings()
+
+-- ============ STATE ============
+local macro = {}
+local loadedMapRoom, loadedGame, loadedEnd = {}, {}, {}
+local StatusLabel, InfoLabel
+
+-- ============ TOUCH ============
+local function sendTouch(state, x, y)
+    return pcall(function() VirtualInputManager:SendTouchEvent(0, state, x, y, 0, 0, 0) end)
+end
+
+local function tapAt(x, y, holdTime)
+    if not x or not y or x <= 0 or y <= 0 then return false end
+    holdTime = holdTime or 0.06
+    if sendTouch(Enum.UserInputState.Begin, x, y) then
+        task.wait(holdTime)
+        sendTouch(Enum.UserInputState.End, x, y)
+        return true
+    end
+    pcall(function()
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
+        task.wait(holdTime)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+    end)
+    return true
+end
+
+local function swipeAt(x1, y1, x2, y2, duration)
+    duration = duration or 0.3
+    local steps = 8
+    local stepTime = duration / steps
+    if not sendTouch(Enum.UserInputState.Begin, x1, y1) then return false end
+    task.wait(stepTime)
+    for i = 1, steps do
+        local t = i / steps
+        local x = x1 + (x2 - x1) * t
+        local y = y1 + (y2 - y1) * t
+        sendTouch(Enum.UserInputState.Change, x, y)
+        task.wait(stepTime)
+    end
+    sendTouch(Enum.UserInputState.End, x2, y2)
+    return true
+end
+
+-- ============ WORLD <-> SCREEN ============
+local function worldToScreen(pos)
+    if not Camera then return nil end
+    local ok, sp, onScreen = pcall(function() return Camera:WorldToScreenPoint(pos) end)
+    if ok and sp and onScreen then return sp.X, sp.Y end
+    return nil
+end
+
+local function screenToWorldGround(x, y)
+    if not Camera then return nil end
+    local ok, result = pcall(function()
+        local ray = Camera:ViewportPointToRay(x, y)
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = {LP.Character}
+        return Workspace:Raycast(ray.Origin, ray.Direction * 3000, params)
+    end)
+    if ok and result and math.abs(result.Normal.Y) >= 0.4 then return result.Position end
+    return nil
+end
+
+-- ============ PHASE DETECTION ============
+local function hasText(kws)
+    for _, gui in ipairs(LP.PlayerGui:GetDescendants()) do
+        if gui.Visible and (gui:IsA("TextLabel") or gui:IsA("TextButton")) then
+            local t = (gui.Text or ""):lower()
+            for _, kw in ipairs(kws) do if t:find(kw) then return true, gui end end
+        end
+    end
+    return false
+end
+
+local function isDefeat() return hasText({"defeat","game over","you lost","replay","retry"}) end
+local function isMapRoom() return hasText({"vote for a map","map rewards","difficulty select","vote to start"}) end
+local function isInGame() if isDefeat() then return false end return hasText({"units","upgrade","wave"}) end
+
+local function detectPhase()
+    if isDefeat() then return "end" end
+    if isMapRoom() then return "maproom" end
+    if isInGame() then return "game" end
+    return "unknown"
+end
+
+local function waitPhase(target, maxSec)
+    local elapsed = 0
+    while elapsed < (maxSec or 120) do
+        if detectPhase() == target then return true end
+        task.wait(0.5)
+        elapsed = elapsed + 0.5
+    end
+    return false
+end
+
+-- ============ SMART UI CLASSIFIER ============
+-- Find which GUI element is under the touch point and classify it
+local function getUIAt(x, y)
+    local ok, guis = pcall(function() return LP.PlayerGui:GetGuiObjectsAtPosition(x, y) end)
+    if not ok or not guis then return nil end
+    for _, obj in ipairs(guis) do
+        if obj:IsA("TextButton") or obj:IsA("ImageButton")
+           or obj:IsA("TextLabel") or obj:IsA("ImageLabel")
+           or obj:IsA("Frame") or obj:IsA("ImageLabel") then
+            return obj
+        end
+    end
+    return nil
+end
+
+-- Build full path name of a GUI element for identification
+local function guiPath(obj)
+    local parts = {}
+    local p = obj
+    local depth = 0
+    while p and p ~= LP.PlayerGui and depth < 6 do
+        table.insert(parts, 1, p.Name)
+        p = p.Parent
+        depth = depth + 1
+    end
+    return table.concat(parts, "/")
+end
+
+-- Score the UI element to guess what it is
+local function classifyUI(obj)
+    if not obj then return nil, nil end
+    local name = (obj.Name or ""):lower()
+    local text = (obj.Text or ""):lower()
+    local path = guiPath(obj):lower()
+    local class = obj.ClassName
+    local size = obj.AbsoluteSize
+    local area = size.X * size.Y
+
+    -- Score rules: higher = more confident
+    local scores = {}
+    local function add(key, val) scores[key] = (scores[key] or 0) + val end
+
+    -- Replay detection
+    if text:find("replay") or name:find("replay") then add("Replay", 10) end
+    if text:find("retry") or name:find("retry") then add("Replay", 8) end
+    if text:find("lobby") or name:find("lobby") then add("Lobby", 10) end
+
+    -- Map vote detection
+    if text:find("vote") then add("Map", 8) end
+    if text:find("space") then add("Map", 6) end
+    if text:find("endless") then add("Map", 6) end
+    if text:find("area") then add("Map", 6) end
+    if text:find("toilet") then add("Map", 5) end
+    if text:find("retro") then add("Map", 5) end
+    if path:find("map") then add("Map", 3) end
+
+    -- Difficulty detection
+    if text:find("normal") then add("Diff", 10) end
+    if text:find("hard") then add("Diff", 10) end
+    if text:find("insane") then add("Diff", 10) end
+    if text:find("nightmare") then add("Diff", 10) end
+    if path:find("difficult") then add("Diff", 4) end
+
+    -- Speed detection (lightning icon, no text, top-left)
+    if not text:find("%w") and class == "ImageButton" and area > 2000 then
+        if obj.AbsolutePosition.Y < Camera.ViewportSize.Y * 0.35 then
+            add("Speed", 6)
+        end
+    end
+    if path:find("speed") then add("Speed", 5) end
+
+    -- Play/Confirm detection
+    if text:find("play") then add("Confirm", 10) end
+    if text:find("start") then add("Confirm", 8) end
+    if text:find("confirm") then add("Confirm", 8) end
+    if text:find("go") and #text < 5 then add("Confirm", 5) end
+
+    -- Find highest score
+    local best, bestVal = nil, 2
+    for k, v in pairs(scores) do
+        if v > bestVal then best, bestVal = k, v end
+    end
+    return best, bestVal
+end
+
+-- ============ ADVANCED CLASSIFY + AUTO-LEARN ============
+local function classifyTap(x, y, action)
+    -- action is a table from gesture tracker: {type="tap"/"hold"/"swipe", x1,y1,x2,y2, hold}
+    local uiObj = getUIAt(x, y)
+    local label, score = classifyUI(uiObj)
+
+    -- Auto-learn based on classification
+    if label then
+        if label == "Replay" then Settings.ReplayX, Settings.ReplayY = x, y; saveSettings()
+        elseif label == "Map" then Settings.MapX, Settings.MapY = x, y; saveSettings()
+        elseif label == "Diff" then Settings.DiffX, Settings.DiffY = x, y; saveSettings()
+        elseif label == "Speed" then Settings.SpeedX, Settings.SpeedY = x, y; saveSettings()
+        elseif label == "Confirm" then Settings.ConfirmX, Settings.ConfirmY = x, y; saveSettings()
+        end
+    end
+
+    -- Speed region fallback (top-left lightning icon)
+    if not label then
+        local vp = Camera and Camera.ViewportSize or {X = 1080, Y = 2400}
+        if x > vp.X * 0.03 and x < vp.X * 0.20 and y > vp.Y * 0.10 and y < vp.Y * 0.22 then
+            Settings.SpeedX, Settings.SpeedY = x, y
+            saveSettings()
+            label = "Speed"
+        end
+    end
+
+    -- UI tap
+    if uiObj or label then
+        return "ui", {
+            x = x, y = y,
+            uiName = uiObj and uiObj.Name or label or "",
+            uiText = uiObj and (uiObj.Text or "") or "",
+            uiPath = uiObj and guiPath(uiObj) or label or "",
+            action = action and action.type or "tap",
+            hold = action and action.hold or 0.06
+        }
+    end
+
+    -- Ground tap (world coords)
+    local wp = screenToWorldGround(x, y)
+    if wp then
+        return "world", {pos = wp, x = x, y = y, action = "tap"}
+    end
+
+    -- Fallback
+    return "screen", {x = x, y = y, action = action and action.type or "tap"}
+end
+
+-- ============ REPLAY ============
+local function replayPhase(data)
+    if not data or #data == 0 then return end
+    for _, action in ipairs(data) do
+        if not Settings.Running then return end
+        task.wait(action.delay or 0.1)
+        if action.type == "world" then
+            local sx, sy = worldToScreen(action.pos)
+            if sx and sy then tapAt(sx, sy) end
+        elseif action.type == "swipe" then
+            swipeAt(action.x1, action.y1, action.x2, action.y2, action.duration or 0.3)
+        else
+            tapAt(action.x, action.y, action.hold or 0.06)
+        end
+    end
+end
+
+-- ============ FULL CYCLE ============
+local function fullCycle()
+    if #loadedMapRoom == 0 then loadedMapRoom = loadJSON(FILE_MAPROOM) or {} end
+    if #loadedGame == 0 then loadedGame = loadJSON(FILE_GAME) or {} end
+    if #loadedEnd == 0 then loadedEnd = loadJSON(FILE_END) or {} end
+
+    if isDefeat() then
+        updateStatus("Defeat -> Replay")
+        local _, btn = hasText({"replay","retry"})
+        if btn and btn:IsA("TextButton") then
+            pcall(function() btn.MouseButton1Click:Fire() end)
+        elseif Settings.ReplayX > 0 then
+            tapAt(Settings.ReplayX, Settings.ReplayY)
+        end
+        task.wait(2)
+        local t = 0
+        while t < 30 and isDefeat() do task.wait(1) t = t + 1 end
+    end
+
+    if not waitPhase("maproom", Settings.MapWaitTimeout) then
+        updateStatus("Map room timeout"); return false
+    end
+    updateStatus("Map room")
+    task.wait(1)
+
+    if Settings.MapX > 0 then tapAt(Settings.MapX, Settings.MapY) task.wait(1) end
+    if Settings.DiffX > 0 then tapAt(Settings.DiffX, Settings.DiffY) task.wait(1) end
+    if Settings.SpeedX > 0 then
+        tapAt(Settings.SpeedX, Settings.SpeedY) task.wait(0.4)
+        tapAt(Settings.SpeedX, Settings.SpeedY) task.wait(1)
+    end
+    if Settings.ConfirmX > 0 then tapAt(Settings.ConfirmX, Settings.ConfirmY) end
+    replayPhase(loadedMapRoom)
+    task.wait(3)
+
+    updateStatus("Waiting game")
+    if not waitPhase("game", 180) then updateStatus("Game not started"); return false end
+    task.wait(2)
+
+    updateStatus("Playing")
+    replayPhase(loadedGame)
+
+    updateStatus("Waiting defeat")
+    local elapsed = 0
+    while elapsed < 1200 and Settings.Running do
+        if isDefeat() then break end
+        task.wait(2)
+        elapsed = elapsed + 2
+    end
+    if not Settings.Running then return false end
+
+    if isDefeat() then
+        updateStatus("Replaying")
+        local _, btn = hasText({"replay","retry"})
+        if btn and btn:IsA("TextButton") then
+            pcall(function() btn.MouseButton1Click:Fire() end)
+        elseif Settings.ReplayX > 0 then
+            tapAt(Settings.ReplayX, Settings.ReplayY)
+        end
+        task.wait(3)
+        replayPhase(loadedEnd)
+        task.wait(2)
+        return true
+    end
+    return false
+end
+
+-- ============ UI ============
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SlopTDMacro"
+ScreenGui.ResetOnSpawn = false
+pcall(function() ScreenGui.Parent = LP:WaitForChild("PlayerGui", 5) end)
+if not ScreenGui.Parent then ScreenGui.Parent = game:GetService("CoreGui") end
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 280, 0, 350)
+Main.Position = UDim2.new(0.5, -140, 0.5, -175)
+Main.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+Main.BorderSize = 0
+Main.Active = true
+Main.Draggable = true
+Main.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 28)
+Title.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+Title.Text = "Slop TD Smart Macro"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextScaled = true
+Title.Parent = Main
+
+StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, -20, 0, 22)
+StatusLabel.Position = UDim2.new(0, 10, 0, 32)
+StatusLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+StatusLabel.Text = "Idle"
+StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusLabel.TextScaled = true
+StatusLabel.Parent = Main
+
+InfoLabel = Instance.new("TextLabel")
+InfoLabel.Size = UDim2.new(1, -20, 0, 56)
+InfoLabel.Position = UDim2.new(0, 10, 0, 58)
+InfoLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+InfoLabel.Text = "No coords learned yet"
+InfoLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+InfoLabel.TextScaled = true
+InfoLabel.TextWrapped = true
+InfoLabel.Parent = Main
+
+local function updateStatus(t) if StatusLabel then StatusLabel.Text = t end end
+
+local function refreshInfo()
+    if InfoLabel then
+        InfoLabel.Text = string.format(
+            "Map(%d,%d) Diff(%d,%d) Spd(%d,%d)\nRep(%d,%d) Cfm(%d,%d)",
+            Settings.MapX, Settings.MapY, Settings.DiffX, Settings.DiffY,
+            Settings.SpeedX, Settings.SpeedY, Settings.ReplayX, Settings.ReplayY,
+            Settings.ConfirmX, Settings.ConfirmY)
+    end
+end
+refreshInfo()
+
+local function makeBtn(text, y, color, cb)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -20, 0, 26)
+    b.Position = UDim2.new(0, 10, 0, y)
+    b.BackgroundColor3 = color
+    b.Text = text
+    b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.TextScaled = true
+    b.BorderSize = 0
+    b.Parent = Main
+    b.MouseButton1Click:Connect(function()
+        local ok, err = pcall(cb)
+        if not ok then warn("[SlopTD] " .. tostring(err)) end
+    end)
+    return b
+end
+
+local phaseBtn = makeBtn("Phase: maproom", 122, Color3.fromRGB(80, 80, 120), function()
+    if Settings.CurrentPhase == "maproom" then Settings.CurrentPhase = "game"
+    elseif Settings.CurrentPhase == "game" then Settings.CurrentPhase = "end"
+    else Settings.CurrentPhase = "maproom" end
+    phaseBtn.Text = "Phase: " .. Settings.CurrentPhase
+    saveSettings()
+end)
+
+local recBtn = makeBtn("Start Recording", 152, Color3.fromRGB(0, 150, 0), function()
+    if Settings.Recording then
+        Settings.Recording = false
+        recBtn.Text = "Start Recording"
+        recBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        local fname = FILE_MAPROOM
+        if Settings.CurrentPhase == "game" then fname = FILE_GAME
+        elseif Settings.CurrentPhase == "end" then fname = FILE_END end
+        if saveJSON(fname, macro) then
+            updateStatus("Saved " .. #macro .. " -> " .. fname)
+            refreshInfo()
+        else
+            updateStatus("Save failed")
+        end
+    else
+        macro = {}
+        Settings.Recording = true
+        startTime = tick()
+        recBtn.Text = "Stop & Save"
+        recBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+        updateStatus("Recording " .. Settings.CurrentPhase)
+    end
+end)
+
+local runBtn = makeBtn("Start Auto Farm", 182, Color3.fromRGB(0, 100, 200), function()
+    if Settings.Running then
+        Settings.Running = false
+        runBtn.Text = "Start Auto Farm"
+        runBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+        updateStatus("Stopped")
+    else
+        Settings.Running = true
+        runBtn.Text = "Stop Auto Farm"
+        runBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+        updateStatus("Running...")
+        task.spawn(function()
+            while Settings.Running do
+                local ok, err = pcall(fullCycle)
+                if not ok then warn("[SlopTD] " .. tostring(err)) end
+                if not Settings.Running then break end
+                task.wait(ok and 3 or 8)
+            end
+        end)
+    end
+end)
+
+makeBtn("Load All Phases", 212, Color3.fromRGB(80, 80, 100), function()
+    loadedMapRoom = loadJSON(FILE_MAPROOM) or {}
+    loadedGame = loadJSON(FILE_GAME) or {}
+    loadedEnd = loadJSON(FILE_END) or {}
+    updateStatus(string.format("M:%d G:%d E:%d", #loadedMapRoom, #loadedGame, #loadedEnd))
+end)
+
+makeBtn("Test Phase Detection", 242, Color3.fromRGB(80, 80, 100), function()
+    updateStatus("Phase: " .. detectPhase())
+end)
+
+makeBtn("Print UI Under Center", 272, Color3.fromRGB(80, 80, 100), function()
+    local cx = Camera.ViewportSize.X / 2
+    local cy = Camera.ViewportSize.Y / 2
+    local obj = getUIAt(cx, cy)
+    if obj then
+        local label, score = classifyUI(obj)
+        updateStatus(string.format("UI: %s (%s) score=%s", obj.Name, obj.ClassName, tostring(score)))
+        print("[SlopTD] UI at center:", guiPath(obj), "->", tostring(label), "score", tostring(score))
+    else
+        updateStatus("No UI at center")
+    end
+end)
+
+makeBtn("Clear Learned Coords", 302, Color3.fromRGB(120, 60, 60), function()
+    Settings.MapX, Settings.MapY = 0, 0
+    Settings.DiffX, Settings.DiffY = 0, 0
+    Settings.SpeedX, Settings.SpeedY = 0, 0
+    Settings.ConfirmX, Settings.ConfirmY = 0, 0
+    Settings.ReplayX, Settings.ReplayY = 0, 0
+    saveSettings()
+    refreshInfo()
+    updateStatus("Cleared")
+end)
+
+-- ============ GESTURE TRACKER ============
+-- Tracks each touch from start to end and classifies as tap / hold / swipe
+local activeGesture = nil
+
+local function startGesture(input)
+    activeGesture = {
+        x1 = input.Position.X, y1 = input.Position.Y,
+        x2 = input.Position.X, y2 = input.Position.Y,
+        startTime = tick(),
+        moved = false,
+        points = {{input.Position.X, input.Position.Y}}
+    }
+end
+
+local function moveGesture(input)
+    if not activeGesture then return end
+    activeGesture.x2 = input.Position.X
+    activeGesture.y2 = input.Position.Y
+    local dx = activeGesture.x2 - activeGesture.x1
+    local dy = activeGesture.y2 - activeGesture.y1
+    if math.sqrt(dx * dx + dy * dy) > 40 then
+        activeGesture.moved = true
+    end
+    table.insert(activeGesture.points, {input.Position.X, input.Position.Y})
+end
+
+local function endGesture(input)
+    if not activeGesture then return end
+    local g = activeGesture
+    activeGesture = nil
+    local duration = tick() - g.startTime
+    local dx = g.x2 - g.x1
+    local dy = g.y2 - g.y1
+    local dist = math.sqrt(dx * dx + dy * dy)
+
+    if g.moved and dist > 100 then
+        return {type = "swipe", x1 = g.x1, y1 = g.y1, x2 = g.x2, y2 = g.y2, duration = duration}
+    elseif duration > 0.4 then
+        return {type = "hold"
