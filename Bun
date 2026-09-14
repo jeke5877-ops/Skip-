@@ -1,0 +1,393 @@
+-- Slop Tower Defense Auto Macro - Fixed based on screenshots
+-- Auto replay, map voting, difficulty select, speed toggle, unit placement, defeat loop
+-- For Arceus X / Delta Executor (mobile)
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
+local LP = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- ============ CONFIG ============
+local AUTO_RUN = false
+local USE_WORLD_COORDS = true
+local ALLOW_DEFEAT_LOOP = true
+
+local FILE_LOBBY = "lobby.json"
+local FILE_MAPROOM = "maproom.json"
+local FILE_GAME = "game.json"
+local FILE_END = "end.json"
+
+-- Manual coordinates based on screenshots
+-- Lobby: not shown in screenshot, tap Play button area
+local LOBBY_X, LOBBY_Y = 0, 0
+-- Map voting: Space thumbnail is on the left side, second row
+-- Based on screenshot 1: Space thumbnail at approximately (420, 340) on 1080p
+local MAP_VOTE_X, MAP_VOTE_Y = 0, 0
+-- Difficulty Select: green "Normal" card is centered, approximately (750, 450)
+local DIFF_X, DIFF_Y = 0, 0
+-- Speed: orange lightning :x1 icon at top-left, approximately (130, 400)
+local SPEED_X, SPEED_Y = 0, 0
+-- Confirm: start button after difficulty (not shown, adjust)
+local CONFIRM_X, CONFIRM_Y = 0, 0
+-- Defeat screen: green "Replay" button at bottom center, approximately (900, 1250)
+local REPLAY_X, REPLAY_Y = 0, 0
+-- Defeat screen: red "Lobby" button at bottom left, approximately (700, 1250)
+local LOBBY_RETURN_X, LOBBY_RETURN_Y = 0, 0
+-- ================================
+
+local recording = false
+local replaying = false
+local autoReplay = false
+local currentPhase = "lobby"
+local macro = {}
+local startTime = 0
+local loadedLobby, loadedMapRoom, loadedGame, loadedEnd = {}, {}, {}, {}
+
+-- ============ TOUCH ============
+local function sendTouch(state, x, y)
+    return pcall(function()
+        VirtualInputManager:SendTouchEvent(0, state, x, y, 0, 0, 0)
+    end)
+end
+
+local function simulateTap(x, y)
+    if not x or not y or x == 0 or y == 0 then return false end
+    if sendTouch(Enum.UserInputState.Begin, x, y) then
+        task.wait(0.05)
+        sendTouch(Enum.UserInputState.End, x, y)
+        return true
+    end
+    return pcall(function()
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+    end)
+end
+
+local function worldToScreen(pos)
+    if not Camera then return nil end
+    local sp, onScreen = Camera:WorldToScreenPoint(pos)
+    if onScreen then return sp.X, sp.Y end
+    return nil
+end
+
+-- Raycast for ground only (reject walls)
+local function screenToWorldGround(x, y)
+    if not Camera then return nil end
+    local ray = Camera:ViewportPointToRay(x, y)
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LP.Character}
+    local r = Workspace:Raycast(ray.Origin, ray.Direction * 2000, params)
+    if not r then return nil end
+    if math.abs(r.Normal.Y) < 0.7 then return nil end
+    return r.Position
+end
+
+-- Wait until character stops moving (map loaded)
+local function waitForMapLoaded(maxSeconds)
+    local waited = 0
+    local stable = 0
+    local lastPos = nil
+    while waited < (maxSeconds or 120) do
+        local char = LP.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                if lastPos and (hrp.Position - lastPos).Magnitude < 0.5 then
+                    stable = stable + 1
+                    if stable >= 3 then return true end
+                else
+                    stable = 0
+                end
+                lastPos = hrp.Position
+            end
+        end
+        task.wait(1)
+        waited = waited + 1
+    end
+    return false
+end
+
+-- ============ FILE I/O ============
+local function saveTo(filename, data)
+    if writefile then
+        writefile(filename, HttpService:JSONEncode(data))
+        return true
+    end
+    return false
+end
+
+local function loadFrom(filename)
+    if readfile and isfile and isfile(filename) then
+        return HttpService:JSONDecode(readfile(filename))
+    end
+    return nil
+end
+
+-- ============ REPLAY ============
+local function replayPhase(data)
+    for _, action in ipairs(data) do
+        task.wait(action.delay or 0.1)
+        if action.type == "screen" then
+            simulateTap(action.x, action.y)
+        elseif action.type == "world" then
+            local sx, sy = worldToScreen(action.pos)
+            if sx and sy then simulateTap(sx, sy) end
+        end
+    end
+end
+
+-- ============ FULL CYCLE ============
+local function fullCycle()
+    -- 1. Lobby -> Play
+    if LOBBY_X ~= 0 and LOBBY_Y ~= 0 then simulateTap(LOBBY_X, LOBBY_Y) end
+    replayPhase(loadedLobby)
+    task.wait(3)
+
+    -- 2. Map voting -> vote for Space (or your chosen map)
+    if MAP_VOTE_X ~= 0 and MAP_VOTE_Y ~= 0 then simulateTap(MAP_VOTE_X, MAP_VOTE_Y) end
+    replayPhase(loadedMapRoom)
+    task.wait(2)
+
+    -- 3. Difficulty -> Normal
+    if DIFF_X ~= 0 and DIFF_Y ~= 0 then simulateTap(DIFF_X, DIFF_Y) end
+    task.wait(1)
+
+    -- 4. Speed -> x5 (tap lightning icon enough times)
+    if SPEED_X ~= 0 and SPEED_Y ~= 0 then
+        simulateTap(SPEED_X, SPEED_Y)
+        task.wait(0.4)
+        simulateTap(SPEED_X, SPEED_Y) -- x1 -> x2 -> x5 typically
+    end
+    task.wait(1)
+
+    -- 5. Confirm / start
+    if CONFIRM_X ~= 0 and CONFIRM_Y ~= 0 then simulateTap(CONFIRM_X, CONFIRM_Y) end
+    task.wait(3)
+
+    -- 6. Wait for map fully loaded
+    if not waitForMapLoaded(180) then
+        Rayfield:Notify({Title = "Error", Content = "Map load timeout", Duration = 3})
+        return false
+    end
+    task.wait(1)
+
+    -- 7. Game macro (units + upgrades)
+    replayPhase(loadedGame)
+
+    -- 8. Wait for end screen (fixed timeout based on average match)
+    task.wait(90)
+
+    -- 9. End screen: Replay same map (defeat loop)
+    if ALLOW_DEFEAT_LOOP and REPLAY_X ~= 0 and REPLAY_Y ~= 0 then
+        simulateTap(REPLAY_X, REPLAY_Y)
+        task.wait(3)
+    end
+    replayPhase(loadedEnd)
+    task.wait(5)
+    return true
+end
+
+-- ============ UI ============
+local Window = Rayfield:CreateWindow({
+    Name = "Slop TD Auto Macro",
+    LoadingTitle = "Loading...",
+    LoadingSubtitle = "by seraph",
+    ConfigurationSaving = { Enabled = true, FolderName = "SlopTDMacro", FileName = "Config" },
+    KeySystem = false
+})
+
+local RecordTab = Window:CreateTab("Record", 4483362458)
+local RunTab = Window:CreateTab("Run", 4483362458)
+local SettingsTab = Window:CreateTab("Settings", 4483362458)
+
+-- RECORD TAB
+RecordTab:CreateParagraph({Title = "Phases", Content = "lobby -> maproom (vote+difficulty+speed) -> game (units) -> end (replay/lobby)"})
+
+local PhaseLabel = RecordTab:CreateLabel("Current phase: lobby")
+RecordTab:CreateDropdown({
+    Name = "Phase to record",
+    Options = {"lobby", "maproom", "game", "end"},
+    CurrentOption = {"lobby"},
+    Flag = "Phase",
+    Callback = function(Option)
+        currentPhase = Option[1]
+        PhaseLabel:Set("Current phase: " .. currentPhase)
+    end
+})
+
+RecordTab:CreateButton({
+    Name = "Start Recording",
+    Callback = function()
+        if recording then return end
+        macro = {}
+        recording = true
+        startTime = tick()
+        Rayfield:Notify({Title = "Recording", Content = "Recording " .. currentPhase, Duration = 2})
+    end
+})
+
+RecordTab:CreateButton({
+    Name = "Stop & Save Phase",
+    Callback = function()
+        if not recording then return end
+        recording = false
+        local fname = FILE_LOBBY
+        if currentPhase == "maproom" then fname = FILE_MAPROOM
+        elseif currentPhase == "game" then fname = FILE_GAME
+        elseif currentPhase == "end" then fname = FILE_END end
+        if saveTo(fname, macro) then
+            Rayfield:Notify({Title = "Saved", Content = #macro .. " actions -> " .. fname, Duration = 3})
+        end
+    end
+})
+
+-- RUN TAB
+RunTab:CreateButton({
+    Name = "Load All Phases",
+    Callback = function()
+        loadedLobby = loadFrom(FILE_LOBBY) or {}
+        loadedMapRoom = loadFrom(FILE_MAPROOM) or {}
+        loadedGame = loadFrom(FILE_GAME) or {}
+        loadedEnd = loadFrom(FILE_END) or {}
+        Rayfield:Notify({Title = "Loaded", Content = string.format("L:%d M:%d G:%d E:%d", #loadedLobby, #loadedMapRoom, #loadedGame, #loadedEnd), Duration = 4})
+    end
+})
+
+RunTab:CreateButton({
+    Name = "Run Full Cycle",
+    Callback = function()
+        if replaying then return end
+        replaying = true
+        task.spawn(function()
+            local ok = pcall(fullCycle)
+            replaying = false
+            Rayfield:Notify({Title = "Done", Content = ok and "Cycle complete" or "Cycle failed", Duration = 2})
+        end)
+    end
+})
+
+RunTab:CreateToggle({
+    Name = "Auto Replay Full Cycle",
+    CurrentValue = false,
+    Flag = "AutoFull",
+    Callback = function(Value)
+        autoReplay = Value
+        if Value then
+            task.spawn(function()
+                while autoReplay do
+                    if not replaying and not recording then
+                        replaying = true
+                        local ok = pcall(fullCycle)
+                        replaying = false
+                        if not ok then
+                            Rayfield:Notify({Title = "Retry", Content = "Cycle failed, retrying in 10s", Duration = 3})
+                            task.wait(10)
+                        end
+                    end
+                    task.wait(2)
+                end
+            end)
+        end
+    end
+})
+
+-- SETTINGS TAB
+SettingsTab:CreateToggle({
+    Name = "Use World Coordinates",
+    CurrentValue = true,
+    Flag = "UseWorld",
+    Callback = function(Value) USE_WORLD_COORDS = Value end
+})
+
+SettingsTab:CreateToggle({
+    Name = "Allow Defeat Loop (tap Replay)",
+    CurrentValue = true,
+    Flag = "DefeatLoop",
+    Callback = function(Value) ALLOW_DEFEAT_LOOP = Value end
+})
+
+local function coordInput(name, cb)
+    SettingsTab:CreateInput({Name = name, PlaceholderText = "0", RemoveTextAfterFocusLost = false, Callback = cb})
+end
+
+-- Coordinate inputs (based on screenshot: 1080x2400 phone)
+coordInput("Lobby Play X", function(t) LOBBY_X = tonumber(t) or 0 end)
+coordInput("Lobby Play Y", function(t) LOBBY_Y = tonumber(t) or 0 end)
+coordInput("Map Vote X (Space thumbnail)", function(t) MAP_VOTE_X = tonumber(t) or 0 end)
+coordInput("Map Vote Y (Space thumbnail)", function(t) MAP_VOTE_Y = tonumber(t) or 0 end)
+coordInput("Difficulty X (Normal card)", function(t) DIFF_X = tonumber(t) or 0 end)
+coordInput("Difficulty Y (Normal card)", function(t) DIFF_Y = tonumber(t) or 0 end)
+coordInput("Speed X (lightning icon)", function(t) SPEED_X = tonumber(t) or 0 end)
+coordInput("Speed Y (lightning icon)", function(t) SPEED_Y = tonumber(t) or 0 end)
+coordInput("Confirm X", function(t) CONFIRM_X = tonumber(t) or 0 end)
+coordInput("Confirm Y", function(t) CONFIRM_Y = tonumber(t) or 0 end)
+coordInput("Replay X (green button)", function(t) REPLAY_X = tonumber(t) or 0 end)
+coordInput("Replay Y (green button)", function(t) REPLAY_Y = tonumber(t) or 0 end)
+coordInput("Lobby Return X (red button)", function(t) LOBBY_RETURN_X = tonumber(t) or 0 end)
+coordInput("Lobby Return Y (red button)", function(t) LOBBY_RETURN_Y = tonumber(t) or 0 end)
+
+SettingsTab:CreateButton({
+    Name = "Test Ground Raycast (center)",
+    Callback = function()
+        local cx, cy = Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2
+        local pos = screenToWorldGround(cx, cy)
+        if pos then
+            Rayfield:Notify({Title = "Ground", Content = tostring(pos), Duration = 3})
+        else
+            Rayfield:Notify({Title = "Ground", Content = "No ground found", Duration = 2})
+        end
+    end
+})
+
+-- RECORDING
+UserInputService.TouchTap:Connect(function(touchPositions, processed)
+    if recording and not processed then
+        local pos = touchPositions[1]
+        local x, y = pos.X, pos.Y
+        local delay = tick() - startTime
+        startTime = tick()
+
+        local isUI = false
+        for _, obj in ipairs(LP.PlayerGui:GetGuiObjectsAtPosition(x, y)) do
+            if obj:IsA("TextButton") or obj:IsA("ImageButton") or obj:IsA("Frame") or obj:IsA("TextLabel") then
+                isUI = true
+                break
+            end
+        end
+
+        if isUI or not USE_WORLD_COORDS then
+            table.insert(macro, {type = "screen", x = x, y = y, delay = delay})
+        else
+            local worldPos = screenToWorldGround(x, y)
+            if worldPos then
+                table.insert(macro, {type = "world", pos = worldPos, delay = delay})
+            else
+                table.insert(macro, {type = "screen", x = x, y = y, delay = delay})
+            end
+        end
+    end
+end)
+
+if AUTO_RUN then
+    task.wait(1)
+    loadedLobby = loadFrom(FILE_LOBBY) or {}
+    loadedMapRoom = loadFrom(FILE_MAPROOM) or {}
+    loadedGame = loadFrom(FILE_GAME) or {}
+    loadedEnd = loadFrom(FILE_END) or {}
+    if #loadedLobby > 0 or #loadedMapRoom > 0 or #loadedGame > 0 then
+        replaying = true
+        task.spawn(function()
+            local ok = pcall(fullCycle)
+            replaying = false
+        end)
+    end
+end
+
+Rayfield:LoadConfiguration()
