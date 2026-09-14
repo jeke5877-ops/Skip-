@@ -1,0 +1,401 @@
+-- Slop Tower Defense Macro Recorder/Replayer with Auto Map & Difficulty
+-- For Delta Executor (mobile)
+-- Save/load macros, auto replay, auto lobby, map selection, difficulty
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local HttpService = game:GetService("HttpService")
+local LP = Players.LocalPlayer
+local Mouse = LP:GetMouse()
+
+-- State
+local recording = false
+local replaying = false
+local autoReplay = false
+local autoLobby = false
+local autoMap = false
+local applyDifficulty = false
+local macro = {}
+local startTime = 0
+local loadedMacro = {}
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "SlopTDMacro"
+gui.Parent = LP:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 320, 0, 400)
+frame.Position = UDim2.new(0.5, -160, 0.5, -200)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+title.Text = "Slop TD Macro"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Parent = frame
+
+-- Row 1: Record / Stop
+local recBtn = Instance.new("TextButton")
+recBtn.Size = UDim2.new(0, 150, 0, 35)
+recBtn.Position = UDim2.new(0, 10, 0, 40)
+recBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+recBtn.Text = "Start Record"
+recBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+recBtn.Parent = frame
+
+local stopBtn = Instance.new("TextButton")
+stopBtn.Size = UDim2.new(0, 150, 0, 35)
+stopBtn.Position = UDim2.new(0, 160, 0, 40)
+stopBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+stopBtn.Text = "Stop & Save"
+stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopBtn.Parent = frame
+
+-- Row 2: Filename
+local fileBox = Instance.new("TextBox")
+fileBox.Size = UDim2.new(0, 300, 0, 30)
+fileBox.Position = UDim2.new(0, 10, 0, 85)
+fileBox.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+fileBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+fileBox.Text = "macro1.json"
+fileBox.PlaceholderText = "filename.json"
+fileBox.Parent = frame
+
+-- Row 3: Load / Run
+local loadBtn = Instance.new("TextButton")
+loadBtn.Size = UDim2.new(0, 150, 0, 35)
+loadBtn.Position = UDim2.new(0, 10, 0, 125)
+loadBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+loadBtn.Text = "Load Macro"
+loadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+loadBtn.Parent = frame
+
+local runBtn = Instance.new("TextButton")
+runBtn.Size = UDim2.new(0, 150, 0, 35)
+runBtn.Position = UDim2.new(0, 160, 0, 125)
+runBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 150)
+runBtn.Text = "Run Macro"
+runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+runBtn.Parent = frame
+
+-- Row 4: Auto Replay / Auto Lobby
+local autoReplayBtn = Instance.new("TextButton")
+autoReplayBtn.Size = UDim2.new(0, 150, 0, 35)
+autoReplayBtn.Position = UDim2.new(0, 10, 0, 170)
+autoReplayBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+autoReplayBtn.Text = "Auto Replay: OFF"
+autoReplayBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoReplayBtn.Parent = frame
+
+local autoLobbyBtn = Instance.new("TextButton")
+autoLobbyBtn.Size = UDim2.new(0, 150, 0, 35)
+autoLobbyBtn.Position = UDim2.new(0, 160, 0, 170)
+autoLobbyBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+autoLobbyBtn.Text = "Auto Lobby: OFF"
+autoLobbyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoLobbyBtn.Parent = frame
+
+-- Row 5: Difficulty
+local diffLabel = Instance.new("TextLabel")
+diffLabel.Size = UDim2.new(0, 80, 0, 30)
+diffLabel.Position = UDim2.new(0, 10, 0, 215)
+diffLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+diffLabel.Text = "Difficulty:"
+diffLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+diffLabel.Parent = frame
+
+local diffBox = Instance.new("TextBox")
+diffBox.Size = UDim2.new(0, 120, 0, 30)
+diffBox.Position = UDim2.new(0, 95, 0, 215)
+diffBox.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+diffBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+diffBox.Text = "Normal"
+diffBox.PlaceholderText = "Normal/Hard"
+diffBox.Parent = frame
+
+local applyDiffCheck = Instance.new("TextButton")
+applyDiffCheck.Size = UDim2.new(0, 75, 0, 30)
+applyDiffCheck.Position = UDim2.new(0, 220, 0, 215)
+applyDiffCheck.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+applyDiffCheck.Text = "Apply: OFF"
+applyDiffCheck.TextColor3 = Color3.fromRGB(255, 255, 255)
+applyDiffCheck.Parent = frame
+
+-- Row 6: Map selection
+local mapLabel = Instance.new("TextLabel")
+mapLabel.Size = UDim2.new(0, 80, 0, 30)
+mapLabel.Position = UDim2.new(0, 10, 0, 255)
+mapLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+mapLabel.Text = "Map:"
+mapLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+mapLabel.Parent = frame
+
+local mapBox = Instance.new("TextBox")
+mapBox.Size = UDim2.new(0, 120, 0, 30)
+mapBox.Position = UDim2.new(0, 95, 0, 255)
+mapBox.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+mapBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+mapBox.Text = "Space Endless"
+mapBox.PlaceholderText = "Map name"
+mapBox.Parent = frame
+
+local applyMapCheck = Instance.new("TextButton")
+applyMapCheck.Size = UDim2.new(0, 75, 0, 30)
+applyMapCheck.Position = UDim2.new(0, 220, 0, 255)
+applyMapCheck.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+applyMapCheck.Text = "Apply: OFF"
+applyMapCheck.TextColor3 = Color3.fromRGB(255, 255, 255)
+applyMapCheck.Parent = frame
+
+-- Status
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, 0, 0, 25)
+status.Position = UDim2.new(0, 0, 0, 295)
+status.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+status.Text = "Idle"
+status.TextColor3 = Color3.fromRGB(200, 200, 200)
+status.Parent = frame
+
+-- File operations
+local function saveMacro(filename, data)
+    local json = HttpService:JSONEncode(data)
+    if writefile then
+        writefile(filename, json)
+        return true
+    end
+    return false
+end
+
+local function loadMacro(filename)
+    if readfile and isfile and isfile(filename) then
+        local json = readfile(filename)
+        return HttpService:JSONDecode(json)
+    end
+    return nil
+end
+
+-- Find button by text in PlayerGui
+local function findButtonByText(text)
+    for _, gui in pairs(LP.PlayerGui:GetDescendants()) do
+        if (gui:IsA("TextButton") or gui:IsA("ImageButton")) then
+            if (gui.Text and gui.Text:lower():find(text:lower())) or (gui.Name:lower():find(text:lower())) then
+                return gui
+            end
+        end
+    end
+    return nil
+end
+
+-- Click GUI button
+local function clickButton(button)
+    if button then
+        if button:IsA("TextButton") or button:IsA("ImageButton") then
+            button.MouseButton1Click:Fire()
+        end
+    end
+end
+
+-- Recording
+local function startRecording()
+    macro = {}
+    recording = true
+    startTime = tick()
+    status.Text = "Recording..."
+    recBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+end
+
+local function stopAndSave()
+    if not recording then return end
+    recording = false
+    status.Text = "Saving..."
+    recBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    local filename = fileBox.Text
+    if filename == "" then filename = "macro.json" end
+    local success = saveMacro(filename, macro)
+    if success then
+        status.Text = "Saved " .. #macro .. " actions to " .. filename
+    else
+        status.Text = "Save failed (no writefile)"
+    end
+end
+
+-- Replay
+local function replayMacro(data)
+    if not data or #data == 0 then
+        status.Text = "No macro to run"
+        return
+    end
+    replaying = true
+    status.Text = "Replaying..."
+
+    -- Apply map if enabled
+    if autoMap then
+        local mapText = mapBox.Text
+        if mapText ~= "" then
+            local mapBtn = findButtonByText(mapText)
+            if mapBtn then
+                clickButton(mapBtn)
+                task.wait(0.5)
+            end
+        end
+    end
+
+    -- Apply difficulty if enabled
+    if applyDifficulty then
+        local diffText = diffBox.Text
+        if diffText ~= "" then
+            local diffBtn = findButtonByText(diffText)
+            if diffBtn then
+                clickButton(diffBtn)
+                task.wait(0.5)
+            end
+        end
+    end
+
+    for _, action in ipairs(data) do
+        task.wait(action.delay or 0.1)
+        -- Mobile touch simulation (if mouse event fails, use SendTouchEvent)
+        VirtualInputManager:SendMouseButtonEvent(action.x, action.y, 0, true, game, 1)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(action.x, action.y, 0, false, game, 1)
+    end
+
+    replaying = false
+    status.Text = "Replay finished"
+
+    if autoLobby then
+        status.Text = "Auto Lobby: Rejoining..."
+        task.wait(2)
+        TeleportService:Teleport(game.PlaceId, LP)
+    end
+end
+
+-- Capture clicks with unit name detection
+Mouse.Button1Down:Connect(function()
+    if recording then
+        local x, y = Mouse.X, Mouse.Y
+        local delay = tick() - startTime
+        startTime = tick()
+
+        local unitName = ""
+        local guiObjects = LP.PlayerGui:GetGuiObjectsAtPosition(x, y)
+        for _, obj in ipairs(guiObjects) do
+            if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+                unitName = obj.Name
+                if obj.Text and obj.Text ~= "" then
+                    unitName = obj.Text
+                end
+                break
+            end
+        end
+
+        table.insert(macro, {
+            x = x,
+            y = y,
+            delay = delay,
+            unit = unitName
+        })
+        status.Text = "Recorded: " .. #macro .. " | Unit: " .. (unitName ~= "" and unitName or "?")
+    end
+end)
+
+-- Button events
+recBtn.MouseButton1Click:Connect(function()
+    if not recording then startRecording() end
+end)
+
+stopBtn.MouseButton1Click:Connect(function()
+    if recording then stopAndSave() end
+end)
+
+loadBtn.MouseButton1Click:Connect(function()
+    local filename = fileBox.Text
+    if filename == "" then filename = "macro.json" end
+    local data = loadMacro(filename)
+    if data then
+        loadedMacro = data
+        status.Text = "Loaded " .. #loadedMacro .. " actions from " .. filename
+    else
+        status.Text = "Load failed (file not found)"
+    end
+end)
+
+runBtn.MouseButton1Click:Connect(function()
+    if not replaying and not recording then
+        local data = loadedMacro
+        if #data == 0 then
+            local filename = fileBox.Text
+            if filename == "" then filename = "macro.json" end
+            data = loadMacro(filename)
+            if data then loadedMacro = data end
+        end
+        replayMacro(data)
+    end
+end)
+
+autoReplayBtn.MouseButton1Click:Connect(function()
+    autoReplay = not autoReplay
+    if autoReplay then
+        autoReplayBtn.Text = "Auto Replay: ON"
+        autoReplayBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        task.spawn(function()
+            while autoReplay do
+                if not replaying and not recording then
+                    local data = loadedMacro
+                    if #data == 0 then
+                        local filename = fileBox.Text
+                        if filename == "" then filename = "macro.json" end
+                        data = loadMacro(filename)
+                        if data then loadedMacro = data end
+                    end
+                    replayMacro(data)
+                end
+                task.wait(1)
+            end
+        end)
+    else
+        autoReplayBtn.Text = "Auto Replay: OFF"
+        autoReplayBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    end
+end)
+
+autoLobbyBtn.MouseButton1Click:Connect(function()
+    autoLobby = not autoLobby
+    if autoLobby then
+        autoLobbyBtn.Text = "Auto Lobby: ON"
+        autoLobbyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        autoLobbyBtn.Text = "Auto Lobby: OFF"
+        autoLobbyBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    end
+end)
+
+applyDiffCheck.MouseButton1Click:Connect(function()
+    applyDifficulty = not applyDifficulty
+    if applyDifficulty then
+        applyDiffCheck.Text = "Apply: ON"
+        applyDiffCheck.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        applyDiffCheck.Text = "Apply: OFF"
+        applyDiffCheck.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    end
+end)
+
+applyMapCheck.MouseButton1Click:Connect(function()
+    autoMap = not autoMap
+    if autoMap then
+        applyMapCheck.Text = "Apply: ON"
+        applyMapCheck.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        applyMapCheck.Text = "Apply: OFF"
+        applyMapCheck.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    end
+end)
+
+print("Slop TD Macro Loaded with Map Selection")
