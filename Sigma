@@ -1,0 +1,884 @@
+[
+    {
+        "name": "DFFlagTextureQualityOverrideEnabled",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagDisableDPIScale",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagDebugPerfMode",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagTeleportClientAssetPreloadingDoingExperiment2",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagTeleportClientAssetPreloadingDoingExperiment",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagTeleportClientAssetPreloadingEnabledIXP2",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagTeleportClientAssetPreloadingEnabledIXP",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagTeleportClientAssetPreloadingEnabled9",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagAudioEnableVolumetricPanningForPolys",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagWindowsWebViewTelemetryEnabled",
+        "value": "False",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagTeleportPreloadingMetrics5",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagEnableTexturePreloading",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagDebugSkipMeshVoxelizer",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagEnableMeshPreloading2",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagDebugPauseVoxelizer",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagDebugOverrideDPIScale",
+        "value": "False",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFFlagEnableSoundPreloading",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTeleportClientAssetPreloadingHundredthsPercentage2",
+        "value": "100000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTeleportClientAssetPreloadingHundredthsPercentage",
+        "value": "100000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntThrottlingPredictionAccelerationHoldThousandth",
+        "value": "2",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntPerformanceControlTextureQualityBestUtility",
+        "value": "-1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntHACDPointSampleDistApartTenths",
+        "value": "2147483647",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntCSGLevelOfDetailSwitchingDistanceL34",
+        "value": "85",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntCSGLevelOfDetailSwitchingDistanceL23",
+        "value": "85",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntAnimationLodFacsDistanceMax",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTextureQualityOverride",
+        "value": "3",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntS2PhysicsSenderRate",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTimestepArbiterBoundingBoxIntersectionThresholdThou2",
+        "value": "2147483646",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntGameNetPVHeaderRotationOrientIdToleranceExponent",
+        "value": "-2147483647",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTimestepArbiterVelocityCriteriaThresholdTwoDt",
+        "value": "2147483646",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTimestepArbiterAngAccelerationThresholdThou",
+        "value": "2147483646",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntGameNetPVHeaderTranslationZeroCutoffExponent",
+        "value": "-5000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntRaknetBandwidthInfluxHundredthsPercentageV2",
+        "value": "10000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntDebugDefaultTargetWorldStepsPerFrame",
+        "value": "-2147483648",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntInterpolationFrameVelocityThresholdMillionth",
+        "value": "5",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntInterpolationFramePositionThresholdMillionth",
+        "value": "5",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntSimOwnedNOUCountThresholdMillionth",
+        "value": "2147483647",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMegaReplicatorNetworkQualityProcessorUnit",
+        "value": "10",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMemoryUtilityCurveBaseHundrethsPercent",
+        "value": "10000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTimestepArbiterHumanoidTurningVelThreshold",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTimestepArbiterHumanoidLinearVelThreshold",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntRaknetBandwidthPingSendEveryXSeconds",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMemoryUtilityCurveTotalMemoryReserve",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntStreamJobNOUVolumeLengthCap",
+        "value": "2147483647",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMaxProcessPacketsStepsPerCyclic",
+        "value": "5000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMaxProcessPacketsStepsAccumulated",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntWaitOnUpdateNetworkLoopEndedMS",
+        "value": "100",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntGameNetDontSendRedundantNumTimes",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMaxProcessPacketsJobScaling",
+        "value": "10000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntLargePacketQueueSizeCutoffMB",
+        "value": "1000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMemoryUtilityCurveNumSegments",
+        "value": "100",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntDebugFRMQualityLevelOverride",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntWaitOnRecvFromLoopEndedMS",
+        "value": "100",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTaskSchedulerTargetFps",
+        "value": "100000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntNumAssetsMaxToPreload",
+        "value": "9999999",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntCodecMaxOutgoingFrames",
+        "value": "10000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntCodecMaxIncomingPackets",
+        "value": "100",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMaxAcceptableUpdateDelay",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntCanHideGuiGroupId",
+        "value": "32380007",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntRakNetResendRttMultiple",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntAssetPreloading",
+        "value": "9999999",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntConnectionMTUSize",
+        "value": "900",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMaxFrameBufferSize",
+        "value": "4",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntDataSenderRate",
+        "value": "4",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntRakNetLoopMs",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntTrackCountryRegionAPIHundredthsPercent",
+        "value": "10000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntCharacterLoadTime",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntPhysicsSenderMaxBandwidthBpsScaling",
+        "value": "10",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntCSGLevelOfDetailSwitchingDistanceL12",
+        "value": "85",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntVoiceChatVolumeThousandths",
+        "value": "5000",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntContentProviderPreloadHangTelemetryHundredthsPercentage",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntCSGLevelOfDetailSwitchingDistance",
+        "value": "85",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntDataSenderMaxBandwidthBps",
+        "value": "555",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntDataSenderMaxJoinBandwidthBps",
+        "value": "222",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntPhysicsSenderMaxBandwidthBps",
+        "value": "10",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntAnimationLodFacsVisibilityDenominator",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMaxMissedWorldStepsRemembered",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntDebugSendDistInSteps",
+        "value": "-2147483648",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntWorldStepMax",
+        "value": "-2147483648",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntPhysicsImprovedCyclicExecutiveThrottleThresholdTenth",
+        "value": "-1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFIntMaximumUnstickForceInGs",
+        "value": "-15",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "DFStringTelemetryV2Url",
+        "value": "0.0.0.0",
+        "type": "string",
+        "enabled": true
+    },
+    {
+        "name": "FFlagUserHideCharacterParticlesInFirstPerson",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagHandleAltEnterFullscreenManually",
+        "value": "False",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagLuaAppLegacyInputSettingRefactor",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugGraphicsDisableDirect3D11",
+        "value": "False",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugEnableNewWebView2DevTool",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugGraphicsPreferD3D11FL10",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugNextGenRepAttributeRep",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugGraphicsPreferVulkan",
+        "value": "False",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagHighlightOutlinesOnMobile",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugCheckRenderThreading",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugGraphicsPreferD3D11",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagEnableTexturePreloading",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagUserShowGuiHideToggles",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagEnableQuickGameLaunch",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagEnableSoundPreloading",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagFastGPULightCulling3",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagMovePrerender",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagLuauCodegen",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagUserCameraControlLastInputTypeUpdate",
+        "value": "False",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagVideoServiceAddHardwareCodecMetrics",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagGameBasicSettingsFramerateCap5",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugForceFSMCPULightCulling",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagUserFixLoadAnimationError",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugSSAOForce",
+        "value": "False",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugSkyGray",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagQuaternionPoseCorrection",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagContentProviderPreloadHangTelemetry",
+        "value": "False",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagAssetPreloadingIXP",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagMovePrerenderV2",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugForceGenerateHSR",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagGraphicsEnableD3D10Compute",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagPreloadTextureItemsOption4",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FIntGrassMovementReducedMotionFactor",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntRakNetResendBufferArrayLength",
+        "value": "128",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntActivatedCountTimerMSKeyboard",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntVertexSmoothingGroupTolerance",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntDebugTextureManagerSkipMips",
+        "value": "8",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntActivatedCountTimerMSMouse",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntRenderLocalLightUpdatesMin",
+        "value": "6",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntRenderLocalLightUpdatesMax",
+        "value": "8",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntCameraMaxZoomDistance",
+        "value": "9999",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntRenderLocalLightFadeInMs",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntRobloxGuiBlurIntensity",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntTerrainArraySliceSize",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntDebugForceMSAASamples",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntFRMMinGrassDistance",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntFRMMaxGrassDistance",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntFontSizePadding",
+        "value": "3",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntCLI20390_2",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntRenderMaxShadowAtlasUsageBeforeDownscale",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntSmoothMouseSpringFrequencyTenths",
+        "value": "100",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntDirectionalAttenuationMaxPoints",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntSmoothTerrainPhysicsCacheSize",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntUnifiedLightingBlendZone",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntBloomFrmCutoff",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntSSAOMipLevels",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntSSAO",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntRenderShadowmapBias",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntDebugFRMOptionalMSAALevelOverride",
+        "value": "0",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FIntUITextureMaxUpdateDepth",
+        "value": "1",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FLogNetwork",
+        "value": "7",
+        "type": "int",
+        "enabled": true
+    },
+    {
+        "name": "FStringTerrainMaterialTablePre2022",
+        "value": "",
+        "type": "string",
+        "enabled": true
+    },
+    {
+        "name": "FStringGetPlayerImageDefaultTimeout",
+        "value": "1",
+        "type": "string",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugEnableInterpThrottle",
+        "value": "True",
+        "type": "bool",
+        "enabled": true
+    },
+    {
+        "name": "FFlagDebugGraphicsPreferOpenGL",
+        "value": "False",
+        "type": "bool",
+        "enabled": true
+    }
+]
